@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantasy Map Forge - Architect Edition</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white; user-select: none; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+        
+        /* UI Panel */
+        #ui-panel {
+            position: absolute; top: 20px; left: 20px; width: 380px;
+            background: rgba(15, 18, 25, 0.75);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            padding: 24px; border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5),
+                        0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            max-height: 90vh; overflow-y: auto;
+            transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+            z-index: 10;
+        }
+        #ui-panel.collapsed { transform: translateX(-440px); }
+        #ui-panel::-webkit-scrollbar { width: 6px; }
+        #ui-panel::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
+        #ui-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+        #ui-panel::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+        
+        h1 { margin: 0 0 15px 0; font-size: 1.4rem; font-weight: 800; letter-spacing: 1px; color: #fff; border-bottom: 2px solid #4ecdc4; padding-bottom: 10px; }
+        h2 { margin: 24px 0 10px 0; font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; border-bottom: 1px solid #333; padding-bottom: 6px; display: flex; justify-content: space-between; cursor: pointer; }
+        h2 i { transition: transform 0.3s; }
+        h2.closed i { transform: rotate(-90deg); }
+        
+        .section-content { display: block; overflow: hidden; transition: max-height 0.3s ease; }
+        .section-content.hidden { display: none; }
+
+        .control-group { margin-bottom: 14px; }
+        label { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px; color: #ccc; font-weight: 500; }
+        span.val { color: #4ecdc4; font-family: monospace; font-size: 0.9rem; }
+        
+        .tooltip { position: relative; display: inline-block; margin-left: 6px; color: #555; cursor: help; }
+        .tooltip:hover { color: #4ecdc4; }
+        .tooltip .tooltip-text {
+            visibility: hidden; width: 200px; background-color: #1a1a1a; color: #eee; text-align: center; border-radius: 6px; padding: 8px 10px;
+            position: absolute; z-index: 1000; bottom: 140%; left: 50%; margin-left: -100px; opacity: 0; transition: opacity 0.3s; font-size: 0.75rem;
+            border: 1px solid #4ecdc4; pointer-events: none; font-weight: normal;
+        }
+        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+        .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+        input[type="checkbox"] { width: 16px; height: 16px; accent-color: #4ecdc4; cursor: pointer; }
+        
+        input[type="range"] { width: 100%; cursor: pointer; height: 5px; background: #333; border-radius: 3px; appearance: none; margin: 8px 0; }
+        input[type="range"]::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; background: #4ecdc4; border-radius: 50%; border: 2px solid #fff; transition: transform 0.1s; }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        
+        input[type="number"] { background: #222; border: 1px solid #444; color: white; padding: 4px 8px; border-radius: 4px; width: 70px; }
+        
+        select { width: 100%; padding: 10px; background: #222; color: #fff; border: 1px solid #444; border-radius: 6px; cursor: pointer; outline: none; font-size: 0.9rem; }
+        
+        button {
+            width: 100%; padding: 12px; margin-top: 10px; background: #2a2a2a; border: 1px solid #444; color: #eee; border-radius: 8px; cursor: pointer;
+            font-size: 0.9rem; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        button:hover { background: #3a3a3a; transform: translateY(-2px); }
+        button.primary { background: #4ecdc4; color: #000; border: none; }
+        button.accent { background: #ff6b6b; color: #fff; border: none; }
+        button.active { background: #ffe66d; color: #111; border: none; }
+        button.fun { background: #ffd700; color: #000; border: none; }
+        
+        #toggle-ui { position: absolute; top: 20px; left: 400px; width: 44px; height: 44px; background: rgba(20, 22, 26, 0.9); border-radius: 12px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: left 0.3s; z-index: 100; border: 1px solid #444; }
+        #ui-panel.collapsed + #toggle-ui { left: 20px; }
+
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #050505; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; transition: opacity 0.5s; }
+        .loader-bar { width: 200px; height: 4px; background: #222; margin-top: 20px; border-radius: 2px; overflow: hidden; }
+        .loader-fill { height: 100%; width: 0%; background: #4ecdc4; transition: width 0.2s; }
+        #loading-text { font-family: monospace; color: #4ecdc4; letter-spacing: 2px; font-size: 1.1rem; }
+        #loading-sub { color: #666; font-size: 0.8rem; margin-top: 8px; font-style: italic; }
+
+        #export-msg { position: fixed; bottom: 30px; right: 30px; background: #4ecdc4; color: #000; padding: 12px 24px; border-radius: 8px; font-weight: 700; opacity: 0; transform: translateY(20px); transition: all 0.4s; pointer-events: none; z-index: 3000; }
+        #export-msg.visible { opacity: 1; transform: translateY(0); }
+
+        #minimap-container { position: absolute; top: 20px; right: 20px; width: 220px; height: 220px; background: #000; border: 2px solid #333; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 50; }
+        #minimap-canvas { width: 100%; height: 100%; display: block; }
+        
+        .mode-switch { display: flex; gap: 5px; margin-bottom: 20px; background: #1a1a1a; padding: 4px; border-radius: 8px; }
+        .mode-switch button { margin-top: 0; background: transparent; border: none; color: #888; }
+        .mode-switch button.active { background: #333; color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        
+        .tool-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+        .tool-grid button { margin-top: 0; font-size: 0.75rem; padding: 8px; }
+        
+        #fps-hud {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 20px;
+            color: #fff; font-family: monospace; font-size: 0.9rem; pointer-events: none;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        
+        .camera-views { display: flex; gap: 5px; margin-bottom: 15px; }
+        .camera-views button { padding: 6px; font-size: 0.75rem; background: #222; border: 1px solid #444; }
+    </style>
+</head>
+<body>
+
+    <div id="loading">
+        <div id="loading-text">INITIALIZING</div>
+        <div class="loader-bar"><div class="loader-fill" id="progress-fill"></div></div>
+        <div id="loading-sub">Forging Geometry...</div>
+    </div>
+
+    <div id="minimap-container">
+        <canvas id="minimap-canvas" width="220" height="220"></canvas>
+    </div>
+    
+    <div id="fps-hud">WASD: Move | Shift: Sprint | Space: Fly | ESC: Exit | Mouse: Look Around</div>
+
+    <div id="ui-panel">
+        <h1>Fantasy Map Forge</h1>
+        
+        <!-- CAMERA MODE -->
+        <h2 onclick="toggleSection('sec-camera')">Camera & View <i class="fas fa-chevron-down"></i></h2>
+        <div id="sec-camera" class="section-content">
+            <div class="mode-switch">
+                <button id="btn-mode-orbit" class="active"><i class="fas fa-globe"></i> God Mode</button>
+                <button id="btn-mode-fps"><i class="fas fa-person-hiking"></i> Explore</button>
+            </div>
+            <div class="camera-views">
+                <button onclick="setCamera('top')">Top View</button>
+                <button onclick="setCamera('iso')">Isometric</button>
+                <button onclick="setCamera('side')">Side View</button>
+            </div>
+        </div>
+
+        <!-- GENERATION -->
+        <h2 onclick="toggleSection('sec-gen')">1. Terrain Generator <i class="fas fa-chevron-down"></i></h2>
+        <div id="sec-gen" class="section-content">
+            <div class="control-group">
+                <label>Resolution</label>
+                <select id="map-resolution" style="width:100%; padding:8px; background:#222; color:white; border:1px solid #444; border-radius:4px;">
+                    <option value="256">High (256x256)</option>
+                    <option value="512" selected>Ultra (512x512)</option>
+                    <option value="1024">Ludicrous (1M)</option>
+                    <option value="2048">God-Like (4M)</option>
+                    <option value="2828">Insane (8M)</option>
+                    <option value="4000">Infinite (16M)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Seed <input type="number" id="gen-seed" value="12345"></label>
+            </div>
+            <div class="control-group">
+                <label>Noise Scale <span id="val-scale" class="val">1.5</span></label>
+                <input type="range" min="0.5" max="5.0" step="0.1" value="1.5" id="gen-scale">
+            </div>
+            <div class="control-group">
+                <label>Max Height <span id="val-height" class="val">80</span></label>
+                <input type="range" min="20" max="300" value="80" id="gen-height">
+            </div>
+            <div class="control-group">
+                <label>Warp Strength <span id="val-warp" class="val">2.0</span></label>
+                <input type="range" min="0" max="6.0" step="0.1" value="2.0" id="gen-warp">
+            </div>
+             <div class="control-group">
+                <label>Island Size <span id="val-offset" class="val">0.0</span></label>
+                <input type="range" min="-0.5" max="0.5" step="0.05" value="0.0" id="gen-offset">
+            </div>
+            <div class="control-group">
+                <label>Sea Level <span id="val-sea" class="val">0.15</span></label>
+                <input type="range" min="0" max="1.0" step="0.01" value="0.15" id="env-sea">
+            </div>
+        </div>
+
+        <!-- NOISE DETAILS -->
+        <h2 onclick="toggleSection('sec-noise')" class="closed">Advanced Noise <i class="fas fa-chevron-right"></i></h2>
+        <div id="sec-noise" class="section-content hidden">
+            <div class="control-group">
+                <label>Octaves <span id="val-oct" class="val">10</span></label>
+                <input type="range" min="1" max="15" step="1" value="10" id="noise-octaves">
+            </div>
+            <div class="control-group">
+                <label>Persistence <span id="val-pers" class="val">0.5</span></label>
+                <input type="range" min="0.1" max="0.9" step="0.05" value="0.5" id="noise-pers">
+            </div>
+            <div class="control-group">
+                <label>Lacunarity <span id="val-lac" class="val">2.0</span></label>
+                <input type="range" min="1.0" max="4.0" step="0.1" value="2.0" id="noise-lac">
+            </div>
+            <div class="control-group">
+                <label>Ridge Sharpness <span id="val-ridge" class="val">1.0</span></label>
+                <input type="range" min="0.0" max="2.0" step="0.1" value="1.0" id="noise-ridge">
+            </div>
+        </div>
+
+        <!-- EROSION -->
+        <h2 onclick="toggleSection('sec-hydro')" class="closed">2. Hydraulic Erosion <i class="fas fa-chevron-right"></i></h2>
+        <div id="sec-hydro" class="section-content hidden">
+            <div class="control-group">
+                <label>Droplet Count <span id="val-drops" class="val">150k</span></label>
+                <input type="range" min="50000" max="500000" step="10000" value="150000" id="ero-drops">
+            </div>
+            <div class="control-group">
+                <label>Erosion Force <span id="val-carve" class="val">0.5</span></label>
+                <input type="range" min="0.1" max="1.0" step="0.1" value="0.5" id="ero-speed">
+            </div>
+            <div class="control-group">
+                <label>Deposit Amount <span id="val-dep" class="val">0.3</span></label>
+                <input type="range" min="0.1" max="1.0" step="0.1" value="0.3" id="ero-deposit">
+            </div>
+            <button id="btn-erode" class="accent"><i class="fas fa-water"></i> Simulate Rivers</button>
+        </div>
+
+        <!-- SCULPT -->
+        <h2 onclick="toggleSection('sec-sculpt')" class="closed">3. Sculpt Terrain <i class="fas fa-chevron-right"></i></h2>
+        <div id="sec-sculpt" class="section-content hidden">
+            <div class="checkbox-group" style="background:#2a2222; padding:10px; border-radius:8px; border:1px solid #4ecdc4;">
+                <input type="checkbox" id="sculpt-enable">
+                <label for="sculpt-enable" style="margin:0;cursor:pointer;color:#4ecdc4;font-weight:bold;">ENABLE SCULPTING</label>
+            </div>
+            <div class="control-group">
+                <label>Radius <span id="val-size" class="val">30</span></label>
+                <input type="range" min="5" max="200" value="30" id="brush-size">
+            </div>
+            <div class="control-group">
+                <label>Intensity <span id="val-str" class="val">0.5</span></label>
+                <input type="range" min="0.1" max="5.0" step="0.1" value="0.5" id="brush-str">
+            </div>
+            <div class="control-group">
+                <label>Roughness <span id="val-rough" class="val">0.5</span></label>
+                <input type="range" min="0.0" max="1.0" step="0.1" value="0.5" id="brush-rough">
+            </div>
+            <div class="mode-switch">
+                <button id="btn-raise" class="active">Raise</button>
+                <button id="btn-lower">Lower</button>
+                <button id="btn-smooth">Smooth</button>
+            </div>
+        </div>
+
+        <!-- BIOMES -->
+        <h2 onclick="toggleSection('sec-biomes')" class="closed">4. Paint Biomes <i class="fas fa-chevron-right"></i></h2>
+        <div id="sec-biomes" class="section-content hidden">
+            <div class="control-group">
+                <label>Paint Mode</label>
+                <div class="tool-grid">
+                    <button id="btn-biome-auto" class="active">Auto</button>
+                    <button id="btn-biome-grass" style="color:#6fa">Grass</button>
+                    <button id="btn-biome-desert" style="color:#fd9">Desert</button>
+                    <button id="btn-biome-snow" style="color:#fff">Snow</button>
+                    <button id="btn-biome-swamp" style="color:#685">Swamp</button>
+                    <button id="btn-biome-volcano" style="color:#f55">Magma</button>
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Brush Size <span id="val-bsize" class="val">30</span></label>
+                <input type="range" min="5" max="200" value="30" id="biome-brush-size">
+            </div>
+        </div>
+
+        <!-- ASSETS -->
+        <h2 onclick="toggleSection('sec-details')" class="closed">5. Populate World <i class="fas fa-chevron-right"></i></h2>
+        <div id="sec-details" class="section-content hidden">
+            <div class="control-group">
+                <label>Manual Placement</label>
+                <div class="tool-grid">
+                    <button id="btn-place-tree">Tree</button>
+                    <button id="btn-place-house">House</button>
+                    <button id="btn-place-rock">Rock</button>
+                    <button id="btn-place-castle" style="color:#eb5">Castle</button>
+                    <button id="btn-place-tower">Tower</button>
+                    <button id="btn-clear-assets" style="color:#f55">Clear All</button>
+                </div>
+                <p style="font-size:0.7rem; color:#666;">Current: <span id="asset-mode-disp" style="color:#4ecdc4">None</span></p>
+            </div>
+            <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
+            <label>Auto-Generate Selection:</label>
+            <div class="checkbox-group">
+                <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                    <span><input type="checkbox" id="pop-trees" checked> Trees</span>
+                    <span><input type="checkbox" id="pop-villages" checked> Villages</span>
+                    <span><input type="checkbox" id="pop-rocks" checked> Rocks</span>
+                    <span><input type="checkbox" id="pop-towers"> Towers</span>
+                    <span><input type="checkbox" id="pop-castles"> Castles</span>
+                </div>
+            </div>
+            <button id="btn-populate" class="fun"><i class="fas fa-magic"></i> Auto-Populate</button>
+        </div>
+        
+        <!-- VISUALS -->
+        <h2 onclick="toggleSection('sec-env')" class="closed">Visual Settings <i class="fas fa-chevron-right"></i></h2>
+        <div id="sec-env" class="section-content hidden">
+            <div class="control-group">
+                <label>Display Mode</label>
+                <select id="vis-mode">
+                    <option value="Realistic">Realistic</option>
+                    <option value="Parchment">Parchment</option>
+                    <option value="ParchmentColor">Colorful Parchment</option>
+                    <option value="Blueprint">Blueprint</option>
+                    <option value="Neon">Neon</option>
+                    <option value="Satellite">Satellite (Hyper)</option>
+                    <option value="Hypsometric">Hypsometric</option>
+                    <option value="Grayscale">Grayscale</option>
+                </select>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="vis-rotate">
+                <label for="vis-rotate" style="margin:0;cursor:pointer;">Auto-Rotate Camera</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="vis-wire">
+                <label for="vis-wire" style="margin:0;cursor:pointer;">Show Wireframe</label>
+            </div>
+            <div class="control-group">
+                <label>Vertical Scale <span id="val-vert" class="val">1.0x</span></label>
+                <input type="range" min="0.1" max="4.0" step="0.1" value="1.0" id="env-vert">
+            </div>
+        </div>
+        
+        <!-- EXPORT -->
+        <h2 onclick="toggleSection('sec-export')" class="closed">6. Export Map <i class="fas fa-chevron-right"></i></h2>
+        <div id="sec-export" class="section-content hidden">
+            <div class="control-group">
+                <label>Export Style</label>
+                <select id="export-style" style="width:100%; padding:8px; background:#222; color:white; border:1px solid #444; border-radius:4px;">
+                    <option value="Realistic">Realistic</option>
+                    <option value="Parchment">Parchment Map</option>
+                    <option value="ParchmentColor">Colorful Parchment</option>
+                    <option value="Blueprint">Blueprint</option>
+                    <option value="Neon">Neon/Cyber</option>
+                    <option value="Satellite">Satellite (Hyper)</option>
+                    <option value="Hypsometric">Hypsometric</option>
+                    <option value="Grayscale">Heightmap</option>
+                </select>
+            </div>
+            <button id="btn-export-png"><i class="fas fa-image"></i> Export 4K PNG</button>
+            <button id="btn-export-webp"><i class="fas fa-image"></i> Export 4K WebP</button>
+            <button id="btn-export-gltf"><i class="fas fa-cube"></i> Export GLTF</button>
+        </div>
+    </div>
+
+    <button id="toggle-ui"><i class="fas fa-chevron-left"></i></button>
+    <div id="export-msg">Map Saved!</div>
+    <div id="canvas-container"></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+        import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+        import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
+        import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+        // --- CONFIG ---
+        const CONFIG = {
+            res: 512, size: 1000, seed: 12345,
+            scale: 1.5, heightScale: 80, octaves: 10, pers: 0.5, lac: 2.0, warp: 2.0, offset: 0.0, ridgeWeight: 1.0,
+            drops: 150000, eroSpeed: 0.5, depositSpeed: 0.3,
+            sea: 0.15, vert: 1.0, vis: 'Realistic', autoRotate: false, wireframe: false,
+            popTrees: true, popVillages: true, popRocks: true, popTowers: false, popCastles: false,
+            fog: 0x050505
+        };
+        
+        let meshResolution = 512; // Separate from terrain generation resolution
+
+        // --- GLOBALS ---
+        let scene, camera, renderer, terrainMesh, waterMesh, brushCursor;
+        let heights, flux, biomeData; 
+        let orbit, fps, raycaster, mouse;
+        let terrainGeo, perlin, assetGroup;
+        let instancedMeshes = {};
+        
+        const MAX_INSTANCES = 10000;
+        const ASSET_COUNTS = {};
+        const ASSET_TYPES = ['tree', 'house', 'rock', 'tower', 'castle'];
+
+        const clock = new THREE.Clock();
+        const state = {
+            mode: 'orbit',
+            brush: { r: 30, s: 0.5, m: 'raise', rough: 0.5 },
+            paintMode: 0, 
+            sculptEnabled: false,
+            assetType: null,
+            mouseDown: false,
+            fps: { f:0, b:0, l:0, r:0, vel: new THREE.Vector3(), fly: false, sprint: false, scale: 'human' }
+        };
+
+        const mmCanvas = document.getElementById('minimap-canvas');
+        const mmCtx = mmCanvas.getContext('2d');
+        
+        // Global Helper
+        const $ = id => document.getElementById(id);
+
+        // Global UI Handlers
+        window.toggleSection = function(id) {
+            const el = document.getElementById(id);
+            if(el) {
+                const h2 = el.previousElementSibling;
+                el.classList.toggle('hidden');
+                if(h2) h2.classList.toggle('closed');
+            }
+        };
+
+        window.setCamera = function(view) {
+            if(state.mode !== 'orbit') return;
+            if(view === 'top') camera.position.set(0, 1000, 0);
+            else if(view === 'iso') camera.position.set(500, 600, 500);
+            else if(view === 'side') camera.position.set(0, 200, 800);
+            camera.lookAt(0, 0, 0);
+        };
+
+        window.onWindowResize = function() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        };
+
+        // --- INIT ---
+        function init() {
+            const container = $('canvas-container');
+            perlin = new ImprovedNoise();
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(CONFIG.fog);
+            scene.fog = new THREE.FogExp2(CONFIG.fog, 0.0006);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.5, 8000);
+            camera.position.set(0, 400, 600);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.sortObjects = true;
+            container.appendChild(renderer.domElement);
+
+            orbit = new OrbitControls(camera, renderer.domElement);
+            orbit.enableDamping = true;
+
+            fps = new PointerLockControls(camera, renderer.domElement);
+            const _lock = fps.lock;
+            fps.lock = function() { try { this.domElement.requestPointerLock(); } catch(e){} };
+            fps.addEventListener('lock', () => { state.mode='fps'; $('fps-hud').style.opacity=1; });
+            fps.addEventListener('unlock', () => { state.mode='orbit'; orbit.enabled=true; $('fps-hud').style.opacity=0; });
+
+            const amb = new THREE.AmbientLight(0xffffff, 0.4); scene.add(amb);
+            const sun = new THREE.DirectionalLight(0xffeeb1, 1.5);
+            sun.position.set(500, 1000, 500);
+            sun.castShadow = true;
+            sun.shadow.mapSize.set(4096, 4096);
+            sun.shadow.bias = -0.0001;
+            scene.add(sun);
+
+            const ringGeo = new THREE.RingGeometry(0.9, 1, 64);
+            ringGeo.rotateX(-Math.PI/2);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x4ecdc4, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthTest: false, depthWrite: false });
+            brushCursor = new THREE.Mesh(ringGeo, ringMat);
+            brushCursor.renderOrder = 999;
+            brushCursor.visible = false;
+            scene.add(brushCursor);
+
+            assetGroup = new THREE.Group();
+            scene.add(assetGroup);
+            initAssets();
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            setupEvents();
+            setupUI();
+            generateTerrain(); 
+            animate();
+        }
+
+        function initAssets() {
+            const mats = {
+                wood: new THREE.MeshStandardMaterial({color:0x5c4033}), leaf: new THREE.MeshStandardMaterial({color:0x2d4c1e}),
+                oak_leaf: new THREE.MeshStandardMaterial({color:0x4a7c2e}), // Brighter green for oak
+                snow: new THREE.MeshStandardMaterial({color:0xffffff}), dead: new THREE.MeshStandardMaterial({color:0x222222}),
+                cactus: new THREE.MeshStandardMaterial({color:0x668844}), stone: new THREE.MeshStandardMaterial({color:0x777777}),
+                roof: new THREE.MeshStandardMaterial({color:0x8a3324}), sand: new THREE.MeshStandardMaterial({color:0xe6c288})
+            };
+
+            const create = (g, m, c) => { const o = new THREE.InstancedMesh(g, m, c); o.castShadow=true; o.receiveShadow=true; o.count=0; return o; };
+
+            // Oak trees - rounded canopy for lower elevations
+            instancedMeshes.tree_oak = create(new THREE.SphereGeometry(4, 6, 5).scale(1, 0.8, 1).translate(0, 6, 0), mats.oak_leaf, MAX_INSTANCES);
+            instancedMeshes.trunk_oak = create(new THREE.CylinderGeometry(0.8, 1.2, 5, 5).translate(0, 2.5, 0), mats.wood, MAX_INSTANCES);
+            
+            // Pine trees - conical for higher elevations
+            instancedMeshes.tree_pine = create(new THREE.ConeGeometry(3, 10, 5).translate(0, 5, 0), mats.leaf, MAX_INSTANCES);
+            instancedMeshes.trunk_pine = create(new THREE.CylinderGeometry(1, 1, 3, 5).translate(0, 1.5, 0), mats.wood, MAX_INSTANCES);
+            instancedMeshes.tree_snow = create(new THREE.ConeGeometry(3, 10, 5).translate(0, 5, 0), mats.snow, MAX_INSTANCES);
+            instancedMeshes.tree_dead = create(new THREE.CylinderGeometry(1, 0.5, 8, 5).translate(0, 4, 0), mats.dead, MAX_INSTANCES);
+            instancedMeshes.tree_cactus = create(new THREE.CapsuleGeometry(1, 6, 4, 8).translate(0, 3, 0), mats.cactus, MAX_INSTANCES);
+
+            instancedMeshes.house_wood = create(new THREE.BoxGeometry(4, 4, 4).translate(0, 2, 0), mats.wood, MAX_INSTANCES);
+            instancedMeshes.roof_wood = create(new THREE.ConeGeometry(3.5, 3, 4).translate(0, 5.5, 0), mats.roof, MAX_INSTANCES);
+            instancedMeshes.house_sand = create(new THREE.BoxGeometry(4, 4, 4).translate(0, 2, 0), mats.sand, MAX_INSTANCES);
+            instancedMeshes.house_snow = create(new THREE.SphereGeometry(3, 8, 6, 0, 6.28, 0, 1.57).scale(1,0.7,1), mats.snow, MAX_INSTANCES);
+
+            instancedMeshes.rock = create(new THREE.DodecahedronGeometry(2,0), mats.stone, MAX_INSTANCES);
+            instancedMeshes.tower = create(new THREE.CylinderGeometry(2, 2.5, 12, 6).translate(0, 6, 0), mats.stone, MAX_INSTANCES);
+            
+            const wall = new THREE.BoxGeometry(15, 8, 15).translate(0, 4, 0);
+            const keep = new THREE.BoxGeometry(8, 15, 8).translate(0, 7.5, 0);
+            const cGeo = BufferGeometryUtils.mergeGeometries([wall, keep]);
+            instancedMeshes.castle = create(cGeo, mats.stone, 500);
+
+            for(let k in instancedMeshes) assetGroup.add(instancedMeshes[k]);
+            resetAssetCounts();
+        }
+
+        function resetAssetCounts() {
+            for(let k in instancedMeshes) { ASSET_COUNTS[k]=0; instancedMeshes[k].count=0; }
+        }
+
+        function clearAssets() {
+            resetAssetCounts();
+        }
+
+        function addAsset(type, x, z, h, biomeId, isBeach = false) {
+            if (!type) return;
+            const normH = h / (CONFIG.heightScale * CONFIG.vert);
+            
+            if (biomeId === 0) {
+                if (normH > 0.75) biomeId = 3; // Snow
+                else if (isBeach) biomeId = 6; // Beach (coastal only)
+                else biomeId = 1; // Grass/Forest (default)
+            }
+
+            if (type === 'tree') {
+                if(biomeId === 2) {
+                    place(x,z,h,'tree_cactus'); // Desert - cacti only
+                } else if(biomeId === 6) {
+                    return; // Beach - no trees
+                } else if(biomeId === 3) {
+                    place(x,z,h,'tree_snow'); // Snow - pine trees
+                } else if(biomeId === 5) {
+                    place(x,z,h,'tree_dead'); // Magma - dead trees
+                } else {
+                    // Choose tree type based on elevation
+                    if(normH < 0.4) {
+                        // Low elevation - Oak forests (warmer)
+                        place(x,z,h,'tree_oak');
+                        place(x,z,h,'trunk_oak');
+                    } else if(normH < 0.6) {
+                        // Mid elevation - Mix of oak and pine
+                        if(Math.random() < 0.5) {
+                            place(x,z,h,'tree_oak');
+                            place(x,z,h,'trunk_oak');
+                        } else {
+                            place(x,z,h,'tree_pine');
+                            place(x,z,h,'trunk_pine');
+                        }
+                    } else {
+                        // High elevation - Pine forests (cooler)
+                        place(x,z,h,'tree_pine');
+                        place(x,z,h,'trunk_pine');
+                    }
+                }
+            }
+            else if (type === 'house') {
+                if(biomeId === 3) place(x,z,h,'house_snow');
+                else if(biomeId === 2 || biomeId === 6) place(x,z,h,'house_sand'); // Desert or Beach
+                else { place(x,z,h,'house_wood'); place(x,z,h,'roof_wood'); }
+            }
+            else if (type === 'rock') place(x,z,h,'rock');
+            else if (type === 'tower') place(x,z,h,'tower');
+            else if (type === 'castle') place(x,z,h,'castle');
+        }
+
+        function place(x, z, h, key) {
+            if(!instancedMeshes[key] || ASSET_COUNTS[key] >= MAX_INSTANCES) return;
+            const idx = ASSET_COUNTS[key];
+            const dummy = new THREE.Object3D();
+            dummy.position.set(x, h, z);
+            const s = 0.8 + Math.random() * 0.4;
+            dummy.scale.set(s, s, s);
+            dummy.rotation.y = Math.random() * Math.PI * 2;
+            dummy.updateMatrix();
+            instancedMeshes[key].setMatrixAt(idx, dummy.matrix);
+            ASSET_COUNTS[key]++;
+            instancedMeshes[key].count = ASSET_COUNTS[key];
+            instancedMeshes[key].instanceMatrix.needsUpdate = true;
+        }
+
+        async function generateTerrain() {
+            setLoading(true, "FORGING WORLD", "Noise...");
+            await nextFrame();
+            resetAssetCounts();
+
+            if(terrainGeo) terrainGeo.dispose();
+            const res = CONFIG.res, size = CONFIG.size;
+            const count = (res+1)*(res+1);
+            heights = new Float32Array(count);
+            flux = new Float32Array(count).fill(0);
+            biomeData = new Uint8Array(count).fill(0);
+
+            const verts = res+1, chunkSize = 20000, seedZ = CONFIG.seed * 0.1;
+            let minH=Infinity, maxH=-Infinity;
+
+            for(let i=0; i<count; i+=chunkSize) {
+                if(i%50000===0) { setProgress(i/count*50); await nextFrame(); }
+                const end = Math.min(i+chunkSize, count);
+                for(let j=i; j<end; j++) {
+                    const gx=j%verts, gy=Math.floor(j/verts);
+                    const nx=gx/res, ny=gy/res;
+                    
+                    let qx = perlin.noise(nx*2.5, ny*2.5, seedZ);
+                    const nxx = nx + qx * CONFIG.warp * 0.02;
+                    
+                    let base=0, amp=1, freq=CONFIG.scale;
+                    for(let k=0;k<2;k++) { base+=perlin.noise(nxx*freq, ny*freq, seedZ)*amp; amp*=0.5; freq*=2; }
+                    base = base*0.5+0.5; base = Math.pow(base, 1.5);
+
+                    let h = base; 
+                    let r=0; amp=1; freq=CONFIG.scale*2;
+                    for(let k=0;k<CONFIG.octaves;k++) { 
+                        let n=perlin.noise(nxx*freq, ny*freq, seedZ+10); 
+                        n=1-Math.abs(n); r+=n*amp; amp*=CONFIG.pers; freq*=CONFIG.lac; 
+                    }
+                    h += r * 0.5 * base * CONFIG.ridgeWeight;
+                    
+                    h = Math.pow(h, 1.4) + CONFIG.offset;
+                    heights[j] = h;
+                    if(h<minH)minH=h; if(h>maxH)maxH=h;
+                }
+            }
+
+            const range = (maxH - minH) || 1;
+            for(let i=0; i<count; i++) heights[i] = (heights[i]-minH)/range;
+            
+            createMeshes();
+            setLoading(false);
+        }
+
+        async function runErosion() {
+            if(!heights || !terrainMesh) return;
+            setLoading(true, "EROSION", "Simulating physics...");
+            await nextFrame();
+            
+            const res = CONFIG.res, verts = res + 1, drops = CONFIG.drops, chunk = 5000;
+            
+            for(let i=0; i<drops; i+=chunk) {
+                if(i%20000===0) { setProgress(i/drops*100); document.getElementById('loading-sub').textContent = `Droplet ${i/1000}k`; await nextFrame(); }
+                const end = Math.min(i+chunk, drops);
+                for(let k=i; k<end; k++) {
+                    let x = Math.random() * (verts-1), y = Math.random() * (verts-1);
+                    let dirX=0, dirY=0, v=1, water=1, sed=0;
+                    
+                    for(let step=0; step<30; step++) {
+                        const ix = Math.floor(x), iy = Math.floor(y);
+                        const idx = iy*verts + ix;
+                        flux[idx]++;
+                        
+                        const h = heights[idx], hR = heights[idx+1]||h, hD = heights[idx+verts]||h;
+                        const gx = hR - h, gy = hD - h;
+                        
+                        dirX = dirX*0.1 - gx*0.9; dirY = dirY*0.1 - gy*0.9;
+                        const len = Math.sqrt(dirX*dirX + dirY*dirY);
+                        if(len < 0.001) break;
+                        x += dirX/len; y += dirY/len;
+                        if(x<1 || x>=verts-1 || y<1 || y>=verts-1) break;
+                        
+                        const nIdx = Math.floor(y)*verts + Math.floor(x);
+                        const nh = heights[nIdx], diff = nh - h;
+                        const capacity = Math.max(-diff, 0.01) * v * water * 2.0;
+                        
+                        if(sed > capacity || diff > 0) {
+                            const d = (sed - capacity) * CONFIG.depositSpeed;
+                            sed -= d; heights[idx] += d;
+                        } else {
+                            const e = Math.min((capacity-sed)*CONFIG.eroSpeed, -diff);
+                            sed += e; heights[idx] -= e;
+                        }
+                        v = Math.sqrt(v*v + diff*diff*10); water *= 0.95;
+                    }
+                }
+            }
+            updateMesh();
+            setLoading(false);
+        }
+
+        async function populateWorld() {
+            setLoading(true, "POPULATING", "Placing Assets...");
+            await nextFrame();
+            resetAssetCounts();
+
+            const res = CONFIG.res, size = CONFIG.size, verts = res + 1;
+            const seaH = CONFIG.sea * CONFIG.heightScale * CONFIG.vert;
+            const step = Math.max(1, Math.floor(res / 150));
+
+            for(let y=0; y<res; y+=step) {
+                for(let x=0; x<res; x+=step) {
+                    const rx = x+Math.floor(Math.random()*step);
+                    const ry = y+Math.floor(Math.random()*step);
+                    if(rx>=res||ry>=res) continue;
+
+                    const idx = ry*verts+rx;
+                    const h = heights[idx];
+                    const moisture = flux[idx]; // Water flow = moisture
+                    const wx = (rx/res - 0.5) * size;
+                    const wz = (ry/res - 0.5) * size;
+                    
+                    if(h > CONFIG.sea) {
+                        const r = Math.random();
+                        const biome = biomeData[idx];
+                        const isBeach = (h < CONFIG.sea + 0.015);
+                        
+                        // Determine forest density based on moisture and height
+                        let treeDensity = 0.3; // Default forest
+                        
+                        if(biome === 0) { // Auto biome
+                            if(isBeach) {
+                                treeDensity = 0; // Beach - no trees
+                            } else if(h > 0.7) {
+                                treeDensity = 0.12; // Mountains - sparse
+                            } else if(moisture > 30) {
+                                treeDensity = 0.65; // Dense forest near rivers
+                            } else if(moisture > 15) {
+                                treeDensity = 0.4; // Medium forest
+                            } else if(moisture < 8 && h > 0.15 && h < 0.5) {
+                                treeDensity = 0.05; // Open grasslands - very sparse (dry mid-elevation)
+                            } else if(h < 0.25) {
+                                treeDensity = 0.15; // Low grasslands - scattered
+                            }
+                            // else default 0.3 for normal forest
+                        } else if(biome === 1) {
+                            treeDensity = 0.08; // Grass biome - mostly open grassland
+                        } else if(biome === 2) {
+                            treeDensity = 0.08; // Desert biome - sparse cacti
+                        } else if(biome === 3) {
+                            treeDensity = 0.25; // Snow biome
+                        } else if(biome === 4) {
+                            treeDensity = 0.5; // Swamp - dense
+                        } else if(biome === 5) {
+                            treeDensity = 0.1; // Magma - dead trees
+                        } else if(biome === 6) {
+                            treeDensity = 0; // Beach - no trees
+                        }
+                        
+                        if(CONFIG.popCastles && r > 0.998) addAsset('castle', wx, wz, h*CONFIG.heightScale*CONFIG.vert, biome, isBeach);
+                        else if(CONFIG.popTowers && r > 0.995) addAsset('tower', wx, wz, h*CONFIG.heightScale*CONFIG.vert, biome, isBeach);
+                        else if(CONFIG.popVillages && r > 0.98) addAsset('house', wx, wz, h*CONFIG.heightScale*CONFIG.vert, biome, isBeach);
+                        else if(CONFIG.popTrees && r < treeDensity) addAsset('tree', wx, wz, h*CONFIG.heightScale*CONFIG.vert, biome, isBeach);
+                        else if(CONFIG.popRocks && r > 0.95) addAsset('rock', wx, wz, h*CONFIG.heightScale*CONFIG.vert, biome, isBeach);
+                    }
+                }
+            }
+            setLoading(false);
+        }
+
+        function createMeshes() {
+            if(terrainMesh) { scene.remove(terrainMesh); terrainGeo.dispose(); }
+            if(waterMesh) { scene.remove(waterMesh); waterMesh.geometry.dispose(); }
+            
+            terrainGeo = new THREE.PlaneGeometry(CONFIG.size, CONFIG.size, meshResolution, meshResolution);
+            terrainGeo.rotateX(-Math.PI/2);
+            updateMesh(true);
+            
+            const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.1, flatShading: false, wireframe: CONFIG.wireframe });
+            terrainMesh = new THREE.Mesh(terrainGeo, mat);
+            terrainMesh.castShadow = true; terrainMesh.receiveShadow = true;
+            scene.add(terrainMesh);
+            
+            const wGeo = new THREE.PlaneGeometry(CONFIG.size*50, CONFIG.size*50);
+            wGeo.rotateX(-Math.PI/2);
+            const wMat = new THREE.MeshStandardMaterial({ 
+                color: 0x0077be, 
+                transparent: true, 
+                opacity: 0.75, 
+                roughness: 0.05, 
+                metalness: 0.8,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            waterMesh = new THREE.Mesh(wGeo, wMat);
+            waterMesh.renderOrder = 1;
+            waterMesh.position.y = 0.5;
+            scene.add(waterMesh);
+            updateWater();
+        }
+
+        function updateMesh(recalc = true) {
+            if(!terrainGeo || !heights) return;
+            const pos = terrainGeo.attributes.position;
+            const meshVerts = Math.sqrt(pos.count);
+            const heightVerts = Math.sqrt(heights.length);
+            
+            // If mesh and height data don't match, we need to interpolate on the fly
+            if(Math.abs(meshVerts - heightVerts) > 0.1) {
+                const heightRes = heightVerts - 1;
+                const meshRes = meshVerts - 1;
+                for(let i=0; i<pos.count; i++) {
+                    const x = i % meshVerts;
+                    const y = Math.floor(i / meshVerts);
+                    const fx = (x / meshRes) * heightRes;
+                    const fy = (y / meshRes) * heightRes;
+                    const x0 = Math.floor(fx), x1 = Math.min(x0 + 1, heightRes);
+                    const y0 = Math.floor(fy), y1 = Math.min(y0 + 1, heightRes);
+                    const tx = fx - x0, ty = fy - y0;
+                    
+                    const h00 = heights[y0 * heightVerts + x0] || 0;
+                    const h10 = heights[y0 * heightVerts + x1] || 0;
+                    const h01 = heights[y1 * heightVerts + x0] || 0;
+                    const h11 = heights[y1 * heightVerts + x1] || 0;
+                    
+                    const h0 = h00 * (1 - tx) + h10 * tx;
+                    const h1 = h01 * (1 - tx) + h11 * tx;
+                    const h = h0 * (1 - ty) + h1 * ty;
+                    
+                    pos.setY(i, h * CONFIG.heightScale * CONFIG.vert);
+                }
+            } else {
+                // Direct mapping when resolutions match
+                for(let i=0; i<pos.count; i++) {
+                    pos.setY(i, (heights[i] || 0) * CONFIG.heightScale * CONFIG.vert);
+                }
+            }
+            
+            pos.needsUpdate=true;
+            if(recalc) terrainGeo.computeVertexNormals();
+            updateColors(); updateMinimap();
+        }
+        function updateWater() { if(waterMesh) waterMesh.position.y = CONFIG.sea * CONFIG.heightScale * CONFIG.vert; }
+        
+        function changeMeshQuality(newRes) {
+            if(!heights || heights.length === 0) {
+                notify('Generate terrain first!');
+                return;
+            }
+            
+            if(!terrainMesh) {
+                notify('Generate terrain first!');
+                return;
+            }
+            
+            meshResolution = newRes;
+            createMeshes();
+            notify('Mesh Quality: ' + newRes);
+        }
+
+        function updateColors() {
+            const count = terrainGeo.attributes.position.count;
+            const norms = terrainGeo.attributes.normal;
+            const cols = [];
+            const cDeep = new THREE.Color(0x0f2a48), cShallow = new THREE.Color(0x2a5f8b);
+            const cSand = new THREE.Color(0xd4c4a8), cGrass = new THREE.Color(0x558833);
+            const cForest = new THREE.Color(0x2d4c1e), cRock = new THREE.Color(0x666666);
+            const cSnow = new THREE.Color(0xffffff), cRiver = new THREE.Color(0x4488cc);
+            const cMagma = new THREE.Color(0xff4400), cWaste = new THREE.Color(0x554433);
+            
+            const pPaper = new THREE.Color(0xf5e6d3), pWater = new THREE.Color(0xeaddcf);
+            const pInk   = new THREE.Color(0x8b5a2b), pRiver = new THREE.Color(0x4a3c31);
+            
+            const pColorWater = new THREE.Color(0x5ba3d0), pColorLand = new THREE.Color(0xf4e4c1);
+            const pColorForest = new THREE.Color(0x6ba560), pColorMtn = new THREE.Color(0xa67c52);
+            const pColorSnow = new THREE.Color(0xeef5ff), pColorDesert = new THREE.Color(0xddc389);
+
+            const bBg = new THREE.Color(0x104080), bLine = new THREE.Color(0xffffff);
+
+            const nBg = new THREE.Color(0x050505);
+
+            const meshVerts = Math.sqrt(count);
+            const heightVerts = Math.sqrt(heights.length);
+            const needsInterpolation = Math.abs(meshVerts - heightVerts) > 0.1;
+            const heightRes = heightVerts - 1;
+            const meshRes = meshVerts - 1;
+
+            for(let i=0; i<count; i++) {
+                let h, fluxVal, b;
+                
+                if(needsInterpolation) {
+                    // Interpolate height, flux, and biome data when resolutions differ
+                    const x = i % meshVerts;
+                    const y = Math.floor(i / meshVerts);
+                    const fx = (x / meshRes) * heightRes;
+                    const fy = (y / meshRes) * heightRes;
+                    const x0 = Math.floor(fx), x1 = Math.min(x0 + 1, heightRes);
+                    const y0 = Math.floor(fy), y1 = Math.min(y0 + 1, heightRes);
+                    const tx = fx - x0, ty = fy - y0;
+                    
+                    const idx00 = y0 * heightVerts + x0;
+                    const idx10 = y0 * heightVerts + x1;
+                    const idx01 = y1 * heightVerts + x0;
+                    const idx11 = y1 * heightVerts + x1;
+                    
+                    const h00 = heights[idx00] || 0;
+                    const h10 = heights[idx10] || 0;
+                    const h01 = heights[idx01] || 0;
+                    const h11 = heights[idx11] || 0;
+                    const h0 = h00 * (1 - tx) + h10 * tx;
+                    const h1 = h01 * (1 - tx) + h11 * tx;
+                    h = h0 * (1 - ty) + h1 * ty;
+                    
+                    const f00 = flux[idx00] || 0;
+                    const f10 = flux[idx10] || 0;
+                    const f01 = flux[idx01] || 0;
+                    const f11 = flux[idx11] || 0;
+                    const f0 = f00 * (1 - tx) + f10 * tx;
+                    const f1 = f01 * (1 - tx) + f11 * tx;
+                    fluxVal = f0 * (1 - ty) + f1 * ty;
+                    
+                    // Use nearest neighbor for biome (discrete data)
+                    const nearestIdx = Math.round(fy) * heightVerts + Math.round(fx);
+                    b = biomeData[nearestIdx] || 0;
+                } else {
+                    // Direct access when resolutions match
+                    h = heights[i];
+                    fluxVal = flux[i];
+                    b = biomeData[i];
+                }
+                
+                const slope = 1 - norms.getY(i); 
+                let c = new THREE.Color();
+                
+                if (CONFIG.vis === 'Parchment') {
+                    if(h < CONFIG.sea) c.copy(pWater);
+                    else {
+                        c.copy(pPaper);
+                        if(h > 0.5 || slope > 0.2) c.lerp(pInk, Math.min(1, slope * 2.0 + (h-0.5)));
+                        if(fluxVal > 15) c.lerp(pRiver, 0.7);
+                    }
+                }
+                else if (CONFIG.vis === 'ParchmentColor') {
+                    if(h < CONFIG.sea) c.copy(pColorWater);
+                    else {
+                         // Base terrain colors - natural green progression
+                         if(h < 0.25) c.copy(pColorLand).lerp(pColorForest, (h-CONFIG.sea)*2);
+                         else if(h < 0.5) c.copy(pColorForest);
+                         else if(h < 0.7) c.copy(pColorForest).lerp(pColorMtn, (h-0.5)*2.5);
+                         else if(h < 0.85) c.copy(pColorMtn);
+                         else c.copy(pColorMtn).lerp(pColorSnow, (h-0.85)*5);
+                         
+                         // Biome overrides
+                         if(b===1) c.copy(pColorForest); // Grass - green
+                         else if(b===2) c.copy(pColorDesert); // Desert
+                         else if(b===3) c.copy(pColorSnow); // Snow
+                         else if(b===6) c.copy(new THREE.Color(0xf5e6c8)); // Beach - only painted beach biome
+                         
+                         if(slope > 0.3) c.lerp(pColorMtn, slope * 0.7);
+                         if(fluxVal > 15) c.lerp(new THREE.Color(0x4a8dc9), 0.7);
+                    }
+                }
+                else if (CONFIG.vis === 'Blueprint') {
+                    c.copy(bBg);
+                    if (Math.abs(h % 0.05) < 0.005 || Math.abs(h - CONFIG.sea) < 0.005) c.copy(bLine);
+                    if(slope > 0.4 && h > CONFIG.sea) c.lerp(bLine, 0.3);
+                }
+                else if (CONFIG.vis === 'Neon') {
+                     c.setHSL(h, 1.0, 0.5);
+                     if (h < CONFIG.sea) c.multiplyScalar(0.5);
+                     if (slope > 0.3) c.addScalar(0.2);
+                }
+                else if (CONFIG.vis === 'Satellite') {
+                     if(h < CONFIG.sea) {
+                         // Ocean - gradient from deep to shallow
+                         const depth = h / CONFIG.sea;
+                         c.set(0x001a33).lerp(new THREE.Color(0x1a4d6b), depth * 0.6);
+                     } else {
+                         let baseC;
+                         
+                         // Natural earth tone progression
+                         if(h < CONFIG.sea + 0.015) {
+                             // Beach - narrow sandy strip
+                             baseC = new THREE.Color(0xe8dcc8);
+                         } else if(h < 0.2) {
+                             // Low plains - muted green
+                             baseC = new THREE.Color(0x6b8e4e);
+                         } else if(h < 0.4) {
+                             // Rolling hills - grass/forest mix
+                             baseC = new THREE.Color(0x5a7a3c);
+                         } else if(h < 0.6) {
+                             // Mid elevation forest - darker green
+                             baseC = new THREE.Color(0x3d5a2a);
+                         } else if(h < 0.75) {
+                             // Mountain base - brown/gray transition
+                             baseC = new THREE.Color(0x6b5d50);
+                         } else if(h < 0.85) {
+                             // High mountains - gray rock
+                             baseC = new THREE.Color(0x5a5450).lerp(new THREE.Color(0x4a4540), (h-0.75)*2);
+                         } else {
+                             // Snow caps - white with slight blue tint
+                             baseC = new THREE.Color(0xf0f0f5).lerp(new THREE.Color(0xffffff), (h-0.85)*4);
+                         }
+                         
+                         // Biome overrides for painted areas
+                         if(b === 2) baseC = new THREE.Color(0xc9a95e); // Desert - sandy brown
+                         else if(b === 6) baseC = new THREE.Color(0xe8dcc8); // Beach biome
+                         
+                         // Subtle natural variation (less pronounced)
+                         const noise = (Math.sin(i * 0.173) * Math.cos(i * 0.251) + 1) * 0.5;
+                         baseC.offsetHSL(0, noise * 0.05 - 0.025, noise * 0.04 - 0.02);
+                         
+                         // Rock on steep slopes
+                         if(slope > 0.4) baseC.lerp(new THREE.Color(0x6b5d50), slope * 0.6);
+                         
+                         // Rivers - subtle blue
+                         if(fluxVal > 15) baseC.lerp(new THREE.Color(0x3d6b8a), Math.min(fluxVal/50, 0.7));
+                         
+                         c.copy(baseC);
+                     }
+                }
+                else if (CONFIG.vis === 'Realistic') {
+                    if(h < CONFIG.sea) c.copy(cDeep).lerp(cShallow, h/CONFIG.sea);
+                    else {
+                        if (b === 0) { // Auto
+                            if(h < CONFIG.sea + 0.015) c.copy(cSand); // Beach
+                            else if(h < 0.4) c.copy(cGrass).lerp(cForest, (h-CONFIG.sea)/0.4);
+                            else if(h < 0.7) c.copy(cGrass).lerp(cRock, (h-0.4)/0.3);
+                            else c.copy(cRock).lerp(cSnow, (h-0.7)/0.3);
+                            if(slope > 0.4 && h > CONFIG.sea+0.05) c.lerp(cRock, (slope-0.4)*2);
+                        } else {
+                            if (b === 1) c.copy(cGrass); // Grass
+                            else if (b === 2) c.copy(cSand).lerp(new THREE.Color(0xdaa520), 0.3); // Desert (golden sand)
+                            else if (b === 3) c.copy(cSnow); // Snow
+                            else if (b === 4) c.copy(cWaste); // Swamp
+                            else if (b === 5) c.copy(cMagma); // Magma
+                            else if (b === 6) c.copy(cSand); // Beach
+                            if(slope > 0.5) c.lerp(cRock, 0.5);
+                        }
+                        if(fluxVal > 15) c.lerp(cRiver, Math.min((fluxVal-15)/100, 0.8));
+                    }
+                }
+                else if (CONFIG.vis === 'Hypsometric') c.setHSL((1-((h-CONFIG.sea)/(1-CONFIG.sea)))*0.3, 0.8, 0.5);
+                else c.setScalar(h); 
+
+                cols.push(c.r, c.g, c.b);
+            }
+            terrainGeo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+        }
+
+        function updateMinimap() {
+            const size = 220, d = mmCtx.createImageData(size, size).data;
+            for(let y=0; y<size; y++) {
+                for(let x=0; x<size; x++) {
+                    const i = Math.floor((y/size)*CONFIG.res)*(CONFIG.res+1) + Math.floor((x/size)*CONFIG.res);
+                    const h = heights[i];
+                    let r=0,g=0,b=0;
+                    if (CONFIG.vis === 'Parchment') {
+                        if(h < CONFIG.sea) { r=234; g=221; b=207; }
+                        else { r=245; g=230; b=211; if(h>0.5) {r=139;g=90;b=43;} if(flux[i]>15){r=74;g=60;b=49;} }
+                    } else {
+                        if(h < CONFIG.sea) { r=30; g=60; b=120; } 
+                        else { const v = 50 + h*200; r=v; g=v; b=v; if(flux[i]>15){r=0;g=150;b=255;} }
+                    }
+                    const p = (y*size+x)*4; d[p]=r; d[p+1]=g; d[p+2]=b; d[p+3]=255;
+                }
+            }
+            mmCtx.putImageData(new ImageData(d, size, size), 0, 0);
+        }
+
+        function handleInput() {
+            if(!terrainMesh) return;
+            
+            // Plane Raycast for Sculpt Cursor (Fast)
+            if(state.sculptEnabled || (state.paintMode>=1 && state.paintMode<=5)) {
+                 const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+                 raycaster.setFromCamera(mouse, camera);
+                 const target = new THREE.Vector3();
+                 raycaster.ray.intersectPlane(plane, target);
+                 if(target) {
+                     brushCursor.visible = true;
+                     brushCursor.position.copy(target);
+                     brushCursor.position.y = 100; 
+                     brushCursor.scale.setScalar(state.brush.r);
+                     
+                     if(state.sculptEnabled) brushCursor.material.color.setHex(state.mouseDown ? 0xff4757 : 0x4ecdc4);
+                     else brushCursor.material.color.setHex(0x00ff00);
+                 }
+            } else {
+                brushCursor.visible = false;
+            }
+
+            // Actual Logic
+            if(state.mouseDown && state.mode==='orbit' && !state.alt) {
+                raycaster.setFromCamera(mouse, camera);
+                const hits = terrainMesh ? raycaster.intersectObject(terrainMesh) : [];
+                if(hits.length > 0) {
+                    const pt = hits[0].point;
+                    const res=CONFIG.res, size=CONFIG.size, r=state.brush.r;
+                    const cx=(pt.x+size/2)/size*res, cy=(pt.z+size/2)/size*res;
+                    const rGrid=(r/size)*res, verts=res+1;
+                    const minX=Math.max(0, Math.floor(cx-rGrid)), maxX=Math.min(verts-1, Math.ceil(cx+rGrid));
+                    const minY=Math.max(0, Math.floor(cy-rGrid)), maxY=Math.min(verts-1, Math.ceil(cy+rGrid));
+
+                    if(state.sculptEnabled) {
+                        // Sculpt with roughness
+                        let mod=false;
+                        for(let y=minY; y<=maxY; y++) {
+                            for(let x=minX; x<=maxX; x++) {
+                                const dx=x-cx, dy=y-cy;
+                                if(Math.sqrt(dx*dx+dy*dy)<rGrid) {
+                                    const idx=y*verts+x;
+                                    const falloff = 0.5*(1+Math.cos(Math.PI*Math.sqrt(dx*dx+dy*dy)/rGrid));
+                                    let val = (state.brush.s*0.02) * falloff;
+                                    
+                                    // Add roughness noise
+                                    if(state.brush.rough > 0) {
+                                        val *= 1.0 + (Math.random()-0.5) * state.brush.rough * 2.0;
+                                    }
+
+                                    if(state.brush.m==='raise') heights[idx]+=val;
+                                    else if(state.brush.m==='lower') heights[idx]-=val;
+                                    else if(state.brush.m==='smooth') {
+                                         // Simple average for smooth
+                                    }
+                                    mod=true;
+                                }
+                            }
+                        }
+                        if(mod) updateMesh(false);
+                    } 
+                    else if (state.paintMode >= 1 && state.paintMode <= 5) {
+                        // Biome Paint
+                        let mod=false;
+                         for(let y=minY; y<=maxY; y++) {
+                            for(let x=minX; x<=maxX; x++) {
+                                if(Math.sqrt((x-cx)**2+(y-cy)**2)<rGrid) {
+                                    biomeData[y*verts+x] = state.paintMode;
+                                    mod=true;
+                                }
+                            }
+                         }
+                         if(mod) updateColors();
+                    }
+                    else if (state.paintMode >= 10 && state.assetType) {
+                        // Manual Asset
+                        if(Math.random()>0.8) {
+                            const idx = Math.floor(cy)*verts + Math.floor(cx);
+                            addAsset(state.assetType, pt.x, pt.z, pt.y, biomeData[idx]);
+                        }
+                    }
+                }
+            }
+        }
+
+        function setupUI() {
+            const setInput = (id, fn) => { const el = $(id); if(el) el.oninput = fn; };
+            const setChange = (id, fn) => { const el = $(id); if(el) el.onchange = fn; };
+            const setClick = (id, fn) => { const el = $(id); if(el) el.onclick = fn; };
+            
+            setClick('btn-erode', runErosion);
+            setClick('btn-populate', populateWorld);
+            setClick('btn-clear-assets', () => { clearAssets(); notify('Assets Cleared'); });
+
+            ['auto','grass','desert','snow','swamp','volcano'].forEach((b, i) => {
+                setClick('btn-biome-'+b, function() { 
+                    state.paintMode = i; state.sculptEnabled = false; $('sculpt-enable').checked = false;
+                    document.querySelectorAll('.tool-grid button').forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            ASSET_TYPES.forEach(t => {
+                setClick('btn-place-'+t, () => {
+                    state.paintMode = 10; state.assetType = t; state.sculptEnabled = false; $('sculpt-enable').checked = false;
+                    $('asset-mode-disp').innerText = t.toUpperCase();
+                });
+            });
+
+            ['raise','lower','smooth'].forEach(m => {
+                setClick('btn-'+m, function() {
+                    state.brush.m = m; state.paintMode = 0; 
+                    document.querySelectorAll('.mode-switch button').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            setInput('brush-size', e => { state.brush.r = parseInt(e.target.value); $('val-size').innerText = state.brush.r; });
+            setInput('brush-str', e => { state.brush.s = parseFloat(e.target.value); $('val-str').innerText = state.brush.s; });
+            setInput('brush-rough', e => { state.brush.rough = parseFloat(e.target.value); $('val-rough').innerText = state.brush.rough; });
+            setInput('biome-brush-size', e => { state.brush.r = parseInt(e.target.value); $('val-bsize').innerText = state.brush.r; });
+            
+            setInput('gen-scale', e => { CONFIG.scale = parseFloat(e.target.value); $('val-scale').innerText = CONFIG.scale.toFixed(1); generateTerrain(); });
+            setInput('gen-height', e => { CONFIG.heightScale = parseInt(e.target.value); $('val-height').innerText = CONFIG.heightScale; generateTerrain(); });
+            setInput('gen-warp', e => { CONFIG.warp = parseFloat(e.target.value); $('val-warp').innerText = CONFIG.warp.toFixed(1); generateTerrain(); });
+            setInput('gen-offset', e => { CONFIG.offset = parseFloat(e.target.value); $('val-offset').innerText = CONFIG.offset.toFixed(2); generateTerrain(); });
+            setChange('gen-seed', e => { CONFIG.seed = parseInt(e.target.value); generateTerrain(); });
+            setChange('map-resolution', e => {
+                const newRes = parseInt(e.target.value);
+                meshResolution = newRes;
+                if(terrainMesh && heights) {
+                    changeMeshQuality(newRes);
+                }
+            });
+            
+            setInput('noise-octaves', e => { CONFIG.octaves = parseInt(e.target.value); $('val-oct').innerText = CONFIG.octaves; generateTerrain(); });
+            setInput('noise-pers', e => { CONFIG.pers = parseFloat(e.target.value); $('val-pers').innerText = CONFIG.pers.toFixed(2); generateTerrain(); });
+            setInput('noise-lac', e => { CONFIG.lac = parseFloat(e.target.value); $('val-lac').innerText = CONFIG.lac.toFixed(1); generateTerrain(); });
+            setInput('noise-ridge', e => { CONFIG.ridgeWeight = parseFloat(e.target.value); $('val-ridge').innerText = CONFIG.ridgeWeight.toFixed(1); generateTerrain(); });
+
+            setInput('ero-drops', e => { CONFIG.drops = parseInt(e.target.value); $('val-drops').innerText = (CONFIG.drops/1000).toFixed(0) + 'k'; });
+            setInput('ero-speed', e => { CONFIG.eroSpeed = parseFloat(e.target.value); $('val-carve').innerText = CONFIG.eroSpeed.toFixed(1); });
+            setInput('ero-deposit', e => { CONFIG.depositSpeed = parseFloat(e.target.value); $('val-dep').innerText = CONFIG.depositSpeed.toFixed(1); });
+            
+            setInput('env-sea', e => { CONFIG.sea = parseFloat(e.target.value); $('val-sea').innerText = CONFIG.sea.toFixed(2); updateWater(); updateColors(); updateMinimap(); });
+            setInput('env-vert', e => { CONFIG.vert = parseFloat(e.target.value); $('val-vert').innerText = CONFIG.vert.toFixed(1) + 'x'; updateMesh(true); });
+            setChange('vis-mode', e => { CONFIG.vis = e.target.value; updateColors(); updateMinimap(); });
+            setChange('vis-rotate', e => CONFIG.autoRotate = e.target.checked);
+            setChange('vis-wire', e => { 
+                CONFIG.wireframe = e.target.checked; 
+                if(terrainMesh) terrainMesh.material.wireframe = CONFIG.wireframe; 
+            });
+
+            setChange('pop-trees', e => CONFIG.popTrees = e.target.checked);
+            setChange('pop-villages', e => CONFIG.popVillages = e.target.checked);
+            setChange('pop-rocks', e => CONFIG.popRocks = e.target.checked);
+            setChange('pop-towers', e => CONFIG.popTowers = e.target.checked);
+            setChange('pop-castles', e => CONFIG.popCastles = e.target.checked); 
+
+            setClick('btn-mode-orbit', () => { state.mode='orbit'; fps.unlock(); orbit.enabled=true; camera.position.set(0,400,600); camera.lookAt(0,0,0); });
+            setClick('btn-mode-fps', () => { 
+                state.mode='fps'; 
+                if(terrainMesh) {
+                    let spawnX = 0, spawnZ = 0;
+                    raycaster.set(new THREE.Vector3(spawnX, 5000, spawnZ), new THREE.Vector3(0, -1, 0));
+                    const hits = raycaster.intersectObject(terrainMesh);
+                    if(hits.length > 0) {
+                        const groundY = hits[0].point.y;
+                        const eyeHeight = state.fps.scale === 'titan' ? 100 : 2;
+                        camera.position.set(spawnX, groundY + eyeHeight + 5, spawnZ); 
+                    } else {
+                        camera.position.set(0, 200, 0);
+                    }
+                }
+                fps.lock(); orbit.enabled=false; 
+            });
+            
+            setClick('btn-export-png', () => exportExactMap('png'));
+            setClick('btn-export-webp', () => exportExactMap('webp'));
+            setClick('btn-export-gltf', () => {
+                const ex = new GLTFExporter();
+                ex.parse(scene, g => { download(URL.createObjectURL(new Blob([JSON.stringify(g)], {type:'text/plain'})), 'map.gltf'); notify('GLTF Saved'); });
+            });
+            
+            setClick('toggle-ui', () => {
+                const p = document.getElementById('ui-panel'); p.classList.toggle('collapsed');
+                document.getElementById('toggle-ui').innerHTML = p.classList.contains('collapsed') ? '<i class="fas fa-chevron-right"></i>' : '<i class="fas fa-chevron-left"></i>';
+            });
+        }
+
+        function setupEvents() {
+            window.addEventListener('resize', window.onWindowResize);
+            document.addEventListener('mousemove', e => {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1; mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                handleInput();
+            });
+            document.addEventListener('mousedown', e => { if(e.target.tagName!=='CANVAS')return; state.mouseDown=true; handleInput(); });
+            document.addEventListener('mouseup', () => { 
+                state.mouseDown=false; 
+                if(state.mode==='orbit') { 
+                    orbit.enabled=true; 
+                    if(state.sculptEnabled) updateMesh(true); 
+                } 
+            });
+            document.addEventListener('keydown', e => {
+                if(state.mode !== 'fps') return;
+                switch(e.code) {
+                    case 'KeyW': state.fps.f=1; break;
+                    case 'KeyS': state.fps.b=1; break;
+                    case 'KeyA': state.fps.l=1; break;
+                    case 'KeyD': state.fps.r=1; break;
+                    case 'Space': state.fps.fly=true; break;
+                    case 'ShiftLeft': case 'ShiftRight': state.fps.sprint=true; break;
+                    case 'Escape': if(state.mode==='fps') { state.mode='orbit'; fps.unlock(); orbit.enabled=true; } break;
+                }
+            });
+            document.addEventListener('keyup', e => {
+                switch(e.code) {
+                    case 'KeyW': state.fps.f=0; break;
+                    case 'KeyS': state.fps.b=0; break;
+                    case 'KeyA': state.fps.l=0; break;
+                    case 'KeyD': state.fps.r=0; break;
+                    case 'Space': state.fps.fly=false; break;
+                    case 'ShiftLeft': case 'ShiftRight': state.fps.sprint=false; break;
+                }
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+            
+            if(CONFIG.autoRotate && state.mode === 'orbit' && !state.mouseDown) {
+                if(terrainMesh) terrainMesh.rotation.y += 0.0005;
+                if(waterMesh) waterMesh.rotation.y += 0.0005;
+                if(assetGroup) assetGroup.rotation.y += 0.0005;
+            }
+
+            if(state.mode === 'fps') {
+                const eyeHeight = state.fps.scale === 'titan' ? 100 : 8;
+                const baseSpeed = state.fps.scale === 'titan' ? 200 : 50;
+                const speed = state.fps.sprint ? baseSpeed * 2.5 : baseSpeed;
+                const acceleration = speed * 8;
+                const damping = 12;
+                
+                const v = state.fps.vel;
+                v.x -= v.x * damping * dt;
+                v.z -= v.z * damping * dt;
+                
+                const fwd = state.fps.f - state.fps.b;
+                const strafe = state.fps.r - state.fps.l;
+                
+                if(fwd !== 0 || strafe !== 0) {
+                    const dir = new THREE.Vector3();
+                    camera.getWorldDirection(dir);
+                    dir.y = 0;
+                    dir.normalize();
+                    
+                    const right = new THREE.Vector3();
+                    right.crossVectors(camera.up, dir).normalize();
+                    
+                    const moveDir = new THREE.Vector3();
+                    moveDir.addScaledVector(dir, fwd);
+                    moveDir.addScaledVector(right, strafe);
+                    
+                    if(moveDir.lengthSq() > 0) {
+                        moveDir.normalize();
+                        v.x += moveDir.x * acceleration * dt;
+                        v.z += moveDir.z * acceleration * dt;
+                    }
+                }
+                
+                const maxSpeed = speed;
+                const hSpeed = Math.sqrt(v.x * v.x + v.z * v.z);
+                if(hSpeed > maxSpeed) {
+                    const scale = maxSpeed / hSpeed;
+                    v.x *= scale;
+                    v.z *= scale;
+                }
+                
+                const newPos = camera.position.clone();
+                newPos.x += v.x * dt;
+                newPos.z += v.z * dt;
+                
+                if(state.fps.fly) {
+                    newPos.y += speed * dt;
+                } else {
+                    raycaster.set(new THREE.Vector3(newPos.x, newPos.y, newPos.z), new THREE.Vector3(0, -1, 0));
+                    const hits = terrainMesh ? raycaster.intersectObject(terrainMesh) : [];
+                    if(hits.length > 0) {
+                        newPos.y = hits[0].point.y + eyeHeight;
+                    }
+                }
+                
+                camera.position.copy(newPos);
+            } else {
+                if(state.sculptEnabled && state.mouseDown) orbit.enabled = false;
+                orbit.update();
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        function nextFrame() { return new Promise(r => requestAnimationFrame(r)); }
+        function setLoading(v, t, s) { const e=$('loading'); if(v){e.style.opacity=1;e.style.pointerEvents='all';$('loading-text').innerText=t;$('loading-sub').innerText=s;}else{e.style.opacity=0;e.style.pointerEvents='none';} }
+        function setProgress(p) { document.getElementById('progress-fill').style.width=p+'%'; }
+        function download(url, name) { const a=document.createElement('a'); a.href=url; a.download=name; a.click(); }
+        function notify(t) { const e=$('export-msg'); e.innerText=t; e.classList.add('visible'); setTimeout(()=>e.classList.remove('visible'), 2000); }
+        
+        function exportExactMap(format) {
+            const origWidth = renderer.domElement.width;
+            const origHeight = renderer.domElement.height;
+            
+            // Save current camera
+            const origCamera = camera;
+            
+            // Create orthographic camera for perfect top-down view
+            const mapSize = CONFIG.size;
+            const orthoCamera = new THREE.OrthographicCamera(
+                -mapSize/2, mapSize/2,  // left, right
+                mapSize/2, -mapSize/2,  // top, bottom
+                1, 2000                  // near, far
+            );
+            orthoCamera.position.set(0, 1000, 0);
+            orthoCamera.lookAt(0, 0, 0);
+            orthoCamera.updateProjectionMatrix();
+            
+            // Hide water for clean map export
+            const waterWasVisible = waterMesh ? waterMesh.visible : false;
+            if(waterMesh) waterMesh.visible = false;
+            
+            // Render at 4K square resolution
+            renderer.setSize(3840, 3840, false);
+            renderer.render(scene, orthoCamera);
+            
+            // Export the canvas
+            renderer.domElement.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const ext = format === 'webp' ? 'webp' : 'png';
+                download(url, `fantasy-map-4k.${ext}`);
+                notify(`${format.toUpperCase()} Saved!`);
+                
+                // Restore water visibility
+                if(waterMesh) waterMesh.visible = waterWasVisible;
+                
+                // Restore original size
+                renderer.setSize(origWidth, origHeight, false);
+            }, `image/${format === 'webp' ? 'webp' : 'png'}`, 0.95);
+        }
+
+        init();
+    </script>
+</body>
+</html>
