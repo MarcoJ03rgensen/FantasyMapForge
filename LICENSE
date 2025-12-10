@@ -1,0 +1,191 @@
+FantasyMapForge Software License (Non-Commercial Distribution)
+Version 1, December 2025
+
+Copyright (c) 2025 Marco Birkedahl Jørgensen
+
+Preamble
+
+This license governs the rights to the FantasyMapForge software (the
+"Software") and the outputs created by using the Software ("Generated
+Content"). The intent is to:
+- Allow anyone to use and modify the Software for their own purposes;
+- Allow users to keep and commercially exploit any Generated Content they
+   create; and
+- Prohibit commercial distribution of the Software itself without a
+   separate commercial license from the copyright holder.
+
+Definitions
+
+- "Software": the FantasyMapForge application and all source, binaries,
+   documentation, assets, and associated files included in this repository.
+- "Generated Content": any images, maps, models, or other outputs produced
+   by running or using the Software, whether processed or unprocessed.
+- "Commercial Distribution": selling, licensing, sublicensing, or otherwise
+   providing the Software (source or binary) to third parties for a fee or as
+   part of a paid product, service, or distribution bundle.
+- "Service": an online or hosted offering (SaaS) that runs the Software to
+   produce Generated Content for users.
+
+Grant of Rights
+
+1. Use and Modification
+
+    You may use, run, study, copy, and modify the Software for any purpose,
+    including for internal commercial purposes. This includes using the
+    Software to create Generated Content for a business, research, or
+    creative project.
+
+2. Generated Content
+
+    You retain all rights, title, and interest in and to any Generated
+    Content you produce with the Software. You may use, modify, publish,
+    distribute, and sell your Generated Content for any purpose, including
+    commercial purposes, without attribution or additional permission.
+
+Restrictions
+
+3. Commercial Distribution of the Software
+
+    You may NOT commercially distribute, sell, sublicense, or otherwise make
+    available the Software itself or modified versions of the Software to
+    third parties for a fee, except under a separate, explicit commercial
+    license granted by the copyright holder. Examples of prohibited acts
+    without a commercial license include:
+
+    - Selling compiled binaries or packaged versions of the Software.
+    - Including the Software in a paid SDK, library, or product bundle that
+       consumers must pay to receive.
+    - Re-licensing the Software under a proprietary/commercial license and
+       distributing it for a fee.
+
+4. Free Redistribution
+
+    You may redistribute the Software (source or binaries) for free, provided
+    that you retain this license and copyright notice and do not impose
+    additional restrictions that conflict with this license.
+
+5. Services (SaaS)
+
+    Running the Software to provide Generated Content to users as a hosted
+    service (SaaS) is allowed. However, the act of packaging the Software and
+    distributing it to third parties for use (see "Commercial Distribution")
+    is restricted without a commercial license. If you plan to redistribute a
+    copy of the Software itself as part of a paid service offering, please
+    contact the copyright holder for a commercial license.
+
+Attribution
+
+6. Attribution
+
+    If you redistribute the Software (including modified versions), you must
+    include this license file and copyright notice. No additional attribution
+    is required to publish or sell Generated Content.
+
+Commercial Licensing Offer
+
+7. Commercial License Option
+
+    Copyright holders may offer a commercial license for entities who wish to
+    distribute or sell the Software itself or to include it within paid
+    products. Contact the copyright holder to negotiate terms for commercial
+    redistribution.
+
+Warranty and Liability
+
+8. Disclaimer of Warranty
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. USE AT YOUR OWN RISK.
+
+9. Limitation of Liability
+
+    IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+    OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Examples (for clarity)
+
+- Allowed: An artist uses the Software to create maps and sells the images
+   commercially. Or publish the maps in a book.
+- Not allowed without a commercial license: Selling compiled copies of the
+   Software as part of a paid toolkit.
+
+Contact
+
+For inquiries about commercial redistribution or licensing the Software for
+inclusion in paid products, contact: marco@example.com
+
+Summary
+
+✓ You CAN use and modify this Software
+✓ You CAN use the Software in internal/commercial projects
+✓ You OWN and MAY sell Generated Content
+✗ You CANNOT sell or commercially distribute the Software itself without a
+   separate commercial license
+
+
+TERMS AND CONDITIONS
+
+1. Definitions
+
+   "Software" refers to the FantasyMapForge application, including all source
+   code, documentation, and associated files.
+
+   "Generated Content" refers to any maps, images, or other output created by
+   using the Software.
+
+2. Grant of Rights
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this Software, to use, copy, modify, and distribute modified versions of
+   the Software, subject to the following conditions:
+
+   a) Use and Modification: You may use and modify the Software for personal,
+      educational, or commercial purposes.
+
+   b) Generated Content Rights: You retain full ownership and all rights to any
+      Generated Content you create using the Software. You may use, modify,
+      distribute, and sell your Generated Content for any purpose, including
+      commercial purposes, without restriction or attribution requirements.
+
+3. Restrictions
+
+   a) Non-Commercial Distribution: You may NOT sell, license, or otherwise
+      commercially distribute the Software itself or any modified versions of
+      the Software.
+
+   b) Free Distribution Only: You may distribute the Software or modified
+      versions only if such distribution is free of charge.
+
+   c) Attribution: Any distribution of the Software or modified versions must
+      retain this license file and copyright notice.
+
+4. Disclaimer of Warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+5. Limitation of Liability
+
+   IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY
+   DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+   ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+SUMMARY
+
+✓ You CAN use and modify this software
+✓ You CAN distribute modified versions for free
+✓ You OWN all rights to images/maps you create
+✓ You CAN sell your generated images/maps commercially
+✗ You CANNOT sell or commercially distribute the software itself
